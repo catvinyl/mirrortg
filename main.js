@@ -3,7 +3,7 @@ const tg = require('./tg.js');
 const crypto = require('crypto');
 const discord = require('./discord.js');
 const dbjs = require('./db.js');
-
+const httpserver = require('./server.js');
 var uptimeProgram = 0; // new variable to keep track of program uptime
 
 var password = 'testpassword';
