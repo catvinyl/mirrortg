@@ -150,7 +150,23 @@ var commands = [{
     discord.updateFrozenUsers(db.frozenUserIds);
     interaction.reply({ content: 'yay!', ephemeral: true });
   },
-}];
+},
+{
+  name: 'howmuchlisteners',
+  description: 'How much listeners?',
+  function: function (interaction, options) {
+    const tgcid = sanitizeTGCInput(options.tgcid);
+    var reg = findIdInRegister(tgcid);
+    var countListeners = 0;
+    if (reg) {
+      if(reg.listeners){
+        countListeners = reg.listeners.length;
+      }
+    }
+    interaction.reply({ content: 'Found ' + countListeners + ' listeners.', ephemeral: true });
+  },
+  options: [{ name: 'tgcid', description: 'Telegram channel id or url', required: true, type: 'string' }]
+},];
 
 var db = {
 };
@@ -219,6 +235,9 @@ async function main() {
   var dbtmp = await dbjs.loadDBFromFile(password, 'db.bin');
   if (dbtmp) {
     db = dbtmp;
+    console.log('DB loaded!');
+  }else{
+    console.warn('DB not loaded!');
   }
   if (!db.register) {
     db.register = [];
