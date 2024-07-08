@@ -241,4 +241,15 @@ async function main() {
   }
   setInterval(everyminute, 6 * 1000);
 }
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // You can also log the error to a file or send it to a monitoring service
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // You can also log the error to a file or send it to a monitoring service
+});
+
 main();

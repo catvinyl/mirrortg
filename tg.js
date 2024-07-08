@@ -96,8 +96,18 @@ function parseMessages(root) {
       };
     const forwardedFromElement = messageElement.querySelector('.tgme_widget_message_forwarded_from');
     if (forwardedFromElement) {
-        const forwardedFromUrl = forwardedFromElement.querySelector('a').getAttribute('href');
-        const forwardedFromChannelName = forwardedFromElement.querySelector('span').textContent;
+        var forwardedFromUrl = forwardedFromElement.querySelector('a');
+        if(forwardedFromUrl){
+            forwardedFromUrl = forwardedFromUrl.getAttribute('href');
+        }else{
+            forwardedFromUrl = 'https://error.com/'
+        }
+        var forwardedFromChannelName = forwardedFromElement.querySelector('span');
+        if(forwardedFromChannelName){
+            forwardedFromChannelName = forwardedFromChannelName.textContent;
+        }else{
+            forwardedFromChannelName = 'FWDTGC name unknown';
+        }
         result.forwardedFrom = {
             msg_url: forwardedFromUrl,
             tgc_channel_name: forwardedFromChannelName

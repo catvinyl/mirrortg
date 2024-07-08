@@ -80,16 +80,26 @@ function tgcToD(webhookParameters, msg, remove) {
   if(avatarURL.startsWith('data')){
     avatarURL = 'https://telegram-rip.pages.dev/tombstone.png';
   }
-  webhookClient.send({
-    content: content,
-    username: msg.tgc_channel_name,
-    avatarURL: avatarURL,
-    embeds: [...createMediaDEmbeds(msg.mediaUrls), embed],
-  }).catch(function (error) {
-    if(error.status == 404){
-      return remove();
-    }
-    console.log(error);
+  const maxEmbeds = 10;
+  const embeds = [...createMediaDEmbeds(msg.mediaUrls), embed];
+  const chunks = [];
+  
+  while (embeds.length > 0) {
+    chunks.push(embeds.splice(0, maxEmbeds));
+  }
+  
+  chunks.forEach((chunk) => {
+    webhookClient.send({
+      content: content.substring(0, 2000),
+      username: msg.tgc_channel_name.substring(0, 80),
+      avatarURL: avatarURL,
+      embeds: chunk,
+    }).catch(function (error) {
+      if (error.status == 404) {
+        return remove();
+      }
+      console.log(error);
+    });
   });
   delete webhookClient;
 }
