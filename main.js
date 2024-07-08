@@ -258,7 +258,7 @@ async function main() {
   }else{
     console.log('Error: No token!');
   }
-  setInterval(everyminute, 6 * 1000);
+  setInterval(everyminute, 60 * 1000);
 }
 
 process.on('uncaughtException', (err) => {

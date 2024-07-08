@@ -1,5 +1,6 @@
 const fs = require('fs');
 const crypto = require('crypto');
+const firebase = require('./firebase.js');
 
 var pbkdf2Params = {
     name: "PBKDF2",
@@ -103,6 +104,7 @@ exports.decryptDb = async (encrypted, password) => {
 exports.saveDB = function (password, db, filePath) {
     return new Promise(async (resolve, reject) => {
         const encryptedDb = await exports.encryptDb(db, password);
+        await firebase.writeArrayBufferToDB(encryptedDb);
         fs.writeFile(filePath, encryptedDb, 'binary', (err) => {
             if (err) {
                 reject(err);
@@ -115,7 +117,12 @@ exports.saveDB = function (password, db, filePath) {
 
 
 exports.loadDBFromFile = (password, filePath) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+        const fbdb = await firebase.readArrayBufferFromDB();
+        if(fbdb){
+            const decryptedDb = await exports.decryptDb(fbdb, password);
+            return resolve(decryptedDb);
+        }
         fs.stat(filePath, (err, stats) => {
             if (err) {
                 if (err.code === 'ENOENT') {

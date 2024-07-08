@@ -2,3 +2,4 @@ node_modules
 db.bin
 debug.html
 package-lock.json
+firebase.json
