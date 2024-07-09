@@ -35,7 +35,7 @@ function runTask(task){
       removeTask(task);
       resolve();
       // console.log(`Task timed out after ${task.timeout}ms`);
-    }, task.timeout);     
+    }, task.timeout + task.delay);     
 
     task.timeoutId = setTimeout(() => {
       task.running = true;

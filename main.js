@@ -8,23 +8,12 @@ const sfb = require('./sfb.js');
 const tasks = require('./tasks.js');
 var uptimeProgram = 0; // new variable to keep track of program uptime
 
-var codeVersion = 1;
+var codeVersion = 2;
 var password = 'testpassword';
 
 function updateUptime() {
   uptimeProgram++; // increment program uptime
   db.uptime++;
-}
-
-function sanitizeTGCInput(url) {
-  const urlParts = url.split('/');
-  for (let i = urlParts.length - 1; i >= 0; i--) {
-    const part = urlParts[i];
-    if (part && part !== '' && !part.includes('?') && !part.includes('.')) {
-      return part;
-    }
-  }
-  return '';
 }
 
 function secondsToObject(s) {
@@ -66,14 +55,18 @@ async function moveDChannelToCategory(categoryName, channel) {
 var commands = [{
   name: 'addtelegramc',
   description: 'Add Telegram channel as channel',
-  function: function (interaction, options) {
+  function: async function (interaction, options) {
     const isAdministrator = interaction.member.permissions.has('ADMINISTRATOR');
     if (!isAdministrator) {
       return interaction.reply({ content: 'This only for administrators!', ephemeral: true });
     }
+    const tgcid = tg.sanitizeTGCInput(options.tgcid);
+    const tgc_msgs = await tg.getTGCMessages(tgcid);
+    if(tgc_msgs.error){
+      return interaction.reply({ content: tgc_msgs.error, ephemeral: true });
+    }
     // Create a new channel
     const guild = interaction.member.guild;
-    const tgcid = sanitizeTGCInput(options.tgcid);
     var reg = findIdInRegister(tgcid);
     if (!reg) {
       reg = {
@@ -170,10 +163,17 @@ var commands = [{
   name: 'get',
   description: 'Get last message from Telegram channel (provide id)',
   function: async function (interaction, options) {
-    const tgcid = sanitizeTGCInput(options.tgcid);
+    const tgcid = tg.sanitizeTGCInput(options.tgcid);
     const tgc_msgs = await tg.getTGCMessages(tgcid);
+    if(tgc_msgs.error){
+      return interaction.reply({ content: tgc_msgs.error, ephemeral: true });
+    }
     const tgc_last_msg = tgc_msgs[tgc_msgs.length - 1];
-    interaction.reply(tgc_last_msg.text);
+    var content = tgc_last_msg.text;
+    if(tgc_last_msg.mediaUrls){
+      content += ' ' + tgc_last_msg.mediaUrls.join(' ');
+    }
+    interaction.reply(content.slice(0, 2000));
   },
   options: [{ name: 'tgcid', description: 'Telegram channel id or url', required: true, type: 'string' }]
 },
@@ -216,7 +216,7 @@ var commands = [{
   name: 'howmuchlisteners',
   description: 'How much listeners?',
   function: function (interaction, options) {
-    const tgcid = sanitizeTGCInput(options.tgcid);
+    const tgcid = tg.sanitizeTGCInput(options.tgcid);
     var reg = findIdInRegister(tgcid);
     var countListeners = 0;
     if (reg) {
@@ -272,14 +272,27 @@ function generateChecksum(string) {
 async function taskRegistryCell(e, i){
   if(e.type == 'telegram'){
     const tgc_msgs = await tg.getTGCMessages(e.id);
-    const tgc_last_msg = tgc_msgs[tgc_msgs.length - 1];
-    if(tgc_last_msg){
-      const checksum = generateChecksum(tgc_last_msg.time + tgc_last_msg.text);
+    var msg;
+    if(tgc_msgs.error){
+      msg = tgc_msgs;
+    }else{
+      msg = tgc_msgs[tgc_msgs.length - 1];
+    }
+    if(msg){
+      var checksum;
+      if(msg.error){
+        checksum = generateChecksum(msg.error);
+        if(msg.derror){
+          console.log(msg); // TODO: Log it
+        }
+      }else{
+        checksum = generateChecksum(msg.time + msg.text);
+      }
       if (checksum != e.update_checksum) {
         e.update_checksum = checksum;
         for (let x = 0; x < e.listeners.length; x++) {
           const listener = e.listeners[x];
-          discord.tgcToD(listener, tgc_last_msg, function(){
+          discord.tgcToD(listener, msg, function(){
             e.listeners.splice(i, 1);
           });
         }
@@ -315,21 +328,23 @@ async function taskRegistryCell(e, i){
   }
 }
 
+function checkRegCreateTask(...input){
+  tasks.createTask(
+    taskRegistryCell,
+    input,
+    Math.floor(60 * 1000 / db.register.length) * input[1], // i
+    10 * 1000
+  );
+}
 async function checkRegisterLoop() {
   if(db.register.length == 0){
     return;
   }
   for (let i = 0; i < db.register.length; i++) {
     const e = db.register[i];
-    tasks.createTask(
-      taskRegistryCell,
-      [e, i],
-      Math.floor(60 * 1000 / db.register.length) * i,
-      10 * 1000
-    );
+    checkRegCreateTask(e, i);
   }
   await tasks.runTasksAsync();
-  console.log('Tasks done!');
   checkRegisterLoop();
 }
 

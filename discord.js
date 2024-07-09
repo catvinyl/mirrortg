@@ -69,14 +69,23 @@ function toD(webhookParameters, msg, remove){
 
 exports.toD = toD;
 
+function convertToDiscordTimestamp(isoString) {
+  const date = new Date(isoString);
+  const unixTimestamp = Math.floor(date.getTime() / 1000);
+  return `<t:${unixTimestamp}:F>`;
+}
+
 function tgcToD(webhookParameters, msg, remove) {
   const webhookClient = new WebhookClient(webhookParameters);
-  var content = msg.text;
+  var content = msg.text || msg.error;
   // if(msg.mediaUrls.length > 0){
   //     content += ' ' + msg.mediaUrls.join(' ');
   // }
 
-  var description = '👀' + msg.views + ' ';
+  var description = '';
+  if(msg.views){
+    description += '👀' + msg.views + ' ';
+  }
   if (msg.is_edited) {
     description += '📝✔️ ';
   }
@@ -86,7 +95,10 @@ function tgcToD(webhookParameters, msg, remove) {
   if (msg.haveFile) {
     description += '📄✔️ ';
   }
-  description += '⌛️' + msg.time;
+  if(msg.time){
+    // description += '⌛️' + msg.time;
+    description += '⌛️' + convertToDiscordTimestamp(msg.time);
+  }
   const embed = new EmbedBuilder()
     .setColor(0x0099FF);
 
@@ -94,13 +106,24 @@ function tgcToD(webhookParameters, msg, remove) {
     embed.setTitle('FWD: ' + msg.forwardedFrom.tgc_channel_name);
     embed.setURL(msg.forwardedFrom.msg_url);
   } else {
-    embed.setTitle(msg.msg_url);
-    embed.setURL(msg.msg_url);
+    if(msg.msg_url){
+      embed.setTitle(msg.msg_url);
+      embed.setURL(msg.msg_url);
+    }else{
+      if(msg.error){
+        embed.setTitle('Error');
+      }else{
+        embed.setTitle('Title');
+      }
+    }
   }
 
   embed.setDescription(description);
   var avatarURL = msg.tgc_picture;
   if(avatarURL.startsWith('data')){
+    avatarURL = null;
+  }
+  if(!avatarURL){
     avatarURL = 'https://telegram-rip.pages.dev/tombstone.png';
   }
   const maxEmbeds = 10;
@@ -111,10 +134,14 @@ function tgcToD(webhookParameters, msg, remove) {
     chunks.push(embeds.splice(0, maxEmbeds));
   }
   
+  var username = msg.tgc_channel_name;
+  if(!username){
+    username = 'mirrortg';
+  }
   chunks.forEach((chunk) => {
     webhookClient.send({
       content: content.substring(0, 2000),
-      username: msg.tgc_channel_name.substring(0, 80),
+      username: username.substring(0, 80),
       avatarURL: avatarURL,
       embeds: chunk,
     }).catch(function (error) {
