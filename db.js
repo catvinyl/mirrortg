@@ -7,7 +7,7 @@ var pbkdf2Params = {
     hash: "SHA-256",
     iterations: 1000,
     salt: null
-  };
+};
 
 async function encryptString(string, password) {
     // Generate a random salt
@@ -51,41 +51,46 @@ async function encryptString(string, password) {
 }
 
 async function decryptString(binaryData, password) {
-    // Extract the salt, IV, and encrypted data from the binary array
-    const salt = binaryData.slice(0, 16);
-    const iv = binaryData.slice(16, 28); // 12 bytes
-    const encryptedData = binaryData.slice(28);
-  
-    pbkdf2Params.salt = salt;
-    // Derive a key from the password using PBKDF2
-    const key = await crypto.subtle.deriveKey(
-      pbkdf2Params,
-      await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(password),
-        { name: "PBKDF2" },
-        false,
-        ["deriveKey"]
-      ),
-      { name: "AES-GCM", length: 256 },
-      true,
-      ["decrypt"]
-    );
-  
-    // Decrypt the data using AES-GCM
-    const decryptedData = await crypto.subtle.decrypt(
-      {
-        name: "AES-GCM",
-        iv: iv
-      },
-      key,
-      encryptedData
-    );
-  
-    // Return the decrypted string
-    const textDecoder = new TextDecoder('utf-8');
-    return textDecoder.decode(decryptedData);
-  }
+    try {
+        // Extract the salt, IV, and encrypted data from the binary array
+        const salt = binaryData.slice(0, 16);
+        const iv = binaryData.slice(16, 28); // 12 bytes
+        const encryptedData = binaryData.slice(28);
+
+        pbkdf2Params.salt = salt;
+        // Derive a key from the password using PBKDF2
+        const key = await crypto.subtle.deriveKey(
+            pbkdf2Params,
+            await crypto.subtle.importKey(
+                "raw",
+                new TextEncoder().encode(password),
+                { name: "PBKDF2" },
+                false,
+                ["deriveKey"]
+            ),
+            { name: "AES-GCM", length: 256 },
+            true,
+            ["decrypt"]
+        );
+
+        // Decrypt the data using AES-GCM
+        const decryptedData = await crypto.subtle.decrypt(
+            {
+                name: "AES-GCM",
+                iv: iv
+            },
+            key,
+            encryptedData
+        );
+
+        // Return the decrypted string
+        const textDecoder = new TextDecoder('utf-8');
+        return textDecoder.decode(decryptedData);
+    } catch (error) {
+        return null;
+    }
+}
+
 
 exports.encryptDb = (db, password) => {
     const jsonDb = JSON.stringify(db);
@@ -101,10 +106,13 @@ exports.decryptDb = async (encrypted, password) => {
     }
 };
 
+var useFirebase = true;
 exports.saveDB = function (password, db, filePath) {
     return new Promise(async (resolve, reject) => {
         const encryptedDb = await exports.encryptDb(db, password);
-        await firebase.writeArrayBufferToDB(encryptedDb);
+        if (useFirebase) {
+            await firebase.writeArrayBufferToDB(encryptedDb);
+        }
         fs.writeFile(filePath, encryptedDb, 'binary', (err) => {
             if (err) {
                 reject(err);
@@ -119,9 +127,16 @@ exports.saveDB = function (password, db, filePath) {
 exports.loadDBFromFile = (password, filePath) => {
     return new Promise(async (resolve, reject) => {
         const fbdb = await firebase.readArrayBufferFromDB();
-        if(fbdb){
-            const decryptedDb = await exports.decryptDb(fbdb, password);
-            return resolve(decryptedDb);
+        if (fbdb) {
+            if(fbdb.byteLength > 0){
+                const decryptedDb = await exports.decryptDb(fbdb, password);
+                if(decryptedDb){
+                    return resolve(decryptedDb);
+                }else{
+                    useFirebase = false;
+                    console.warn('Warning: Unable to decrypt Firebase db, disabling it.');
+                }
+            }
         }
         fs.stat(filePath, (err, stats) => {
             if (err) {

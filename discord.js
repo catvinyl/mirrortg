@@ -46,6 +46,29 @@ function createMediaDEmbeds(mediaUrls) {
   });
 }
 
+function toD(webhookParameters, msg, remove){
+  const webhookClient = new WebhookClient(webhookParameters);
+  var embeds;
+  if(msg.mediaUrls){
+    embeds = [...createMediaDEmbeds(msg.mediaUrls)];
+  }
+
+  webhookClient.send({
+    content: msg.content.substring(0, 2000),
+    username: msg.name.substring(0, 80),
+    embeds
+  }).catch(function (error) {
+    if (error.status == 404) {
+      return remove();
+    }
+    console.log(error);
+  });
+  delete webhookClient;
+  delete embeds;
+}
+
+exports.toD = toD;
+
 function tgcToD(webhookParameters, msg, remove) {
   const webhookClient = new WebhookClient(webhookParameters);
   var content = msg.text;

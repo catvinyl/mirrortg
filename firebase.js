@@ -8,11 +8,17 @@ function loadFirebaseServiceAccount() {
         const firebaseJson = fs.readFileSync('firebase.json', 'utf8');
         serviceAccount = JSON.parse(firebaseJson);
         if (serviceAccount) {
-            // If serviceAccount is set, encode it as base64 and output it
-            const jsonString = JSON.stringify(serviceAccount);
-            const buffer = Buffer.from(jsonString, 'utf8');
-            const base64String = buffer.toString('base64');
-            console.log(base64String);
+            if(Number(process.env.F) == 1){
+                // If serviceAccount is set, encode it as base64 and output it
+                const jsonString = JSON.stringify(serviceAccount);
+                const buffer = Buffer.from(jsonString, 'utf8');
+                const base64String = buffer.toString('base64');
+                console.log('FIREBASE=');
+                console.log(base64String);
+                process.exit(0);
+            }else{
+                console.log('Tip: to see "FIREBASE" environment variable start with "F=1 ./run.sh"');
+            }
         }
     } catch (error) {
         // If file doesn't exist or can't be parsed, try to load from environment variable
